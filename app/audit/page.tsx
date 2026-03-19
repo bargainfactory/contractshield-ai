@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import ResultsView from "@/components/audit/ResultsView";
+import AuthModal from "@/components/auth/AuthModal";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 type Stage = "upload" | "analyzing" | "results";
 
@@ -32,11 +34,13 @@ const ANALYSIS_STEPS = [
 ];
 
 export default function AuditPage() {
+  const { user } = useAuth();
   const [stage, setStage] = useState<Stage>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState<"basic" | "standard" | "premium">("standard");
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -55,8 +59,7 @@ export default function AuditPage() {
     maxFiles: 1,
   });
 
-  const startAnalysis = () => {
-    if (!file) return;
+  const runAnalysis = () => {
     setStage("analyzing");
     setProgress(0);
     setCurrentStep(0);
@@ -76,6 +79,16 @@ export default function AuditPage() {
         setTimeout(() => setStage("results"), 600);
       }
     }, stepDuration);
+  };
+
+  const startAnalysis = () => {
+    if (!file) return;
+    // If not logged in, show auth modal first; runAnalysis is called on success
+    if (!user) {
+      setShowAuthModal(true);
+    } else {
+      runAnalysis();
+    }
   };
 
   if (stage === "results") {
@@ -264,6 +277,12 @@ export default function AuditPage() {
                 {file ? `Audit My Contract — ${{ basic: "29", standard: "49", premium: "79" }[selectedPlan]}` : "Upload a contract to continue"}
               </button>
 
+              {user && (
+                <p className="text-center text-xs text-gray-400">
+                  Logged in as <span className="font-semibold text-navy-900 dark:text-white">{user.email}</span>
+                </p>
+              )}
+
               <p className="text-center text-xs text-gray-400">
                 Demo mode: click "Audit My Contract" after uploading any file to see a full sample audit result.{" "}
                 <Link href="/generate" className="text-[#00C853] hover:underline">
@@ -343,6 +362,13 @@ export default function AuditPage() {
           )}
         </AnimatePresence>
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={runAnalysis}
+        defaultTab="signup"
+      />
     </div>
   );
 }

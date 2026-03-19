@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Menu, X, Moon, Sun, ChevronDown } from "lucide-react";
+import { Shield, Menu, X, Moon, Sun, ChevronDown, LogOut, User } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 const navLinks = [
   { label: "Audit Contract", href: "/audit" },
@@ -28,9 +29,11 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     setMounted(true);
@@ -153,12 +156,71 @@ export default function Navbar() {
                 {theme === "dark" ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
               </button>
             )}
-            <Link
-              href="/audit"
-              className="px-5 py-2.5 bg-[#00C853] hover:bg-[#00892e] text-white text-sm font-semibold rounded-xl transition-all shadow-md hover:shadow-lg hover:shadow-[#00C853]/25 active:scale-95"
-            >
-              Audit My Contract
-            </Link>
+
+            {mounted && user ? (
+              /* Logged-in user menu */
+              <div
+                className="relative"
+                onMouseEnter={() => setUserMenuOpen(true)}
+                onMouseLeave={() => setUserMenuOpen(false)}
+              >
+                <button className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all",
+                  scrolled || !isHome
+                    ? "border-gray-200 dark:border-navy-600 hover:border-gray-300 bg-white dark:bg-navy-800"
+                    : "border-white/20 hover:border-white/40 bg-white/10"
+                )}>
+                  <div className="w-7 h-7 rounded-full bg-[#00C853] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-xs font-bold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "text-sm font-medium max-w-[120px] truncate",
+                    scrolled || !isHome ? "text-navy-900 dark:text-white" : "text-white"
+                  )}>
+                    {user.name}
+                  </span>
+                  <ChevronDown className={cn("w-3.5 h-3.5", scrolled || !isHome ? "text-gray-400" : "text-white/60")} />
+                </button>
+
+                <AnimatePresence>
+                  {userMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-full right-0 mt-1 w-56 bg-white dark:bg-navy-900 rounded-xl shadow-xl border border-gray-100 dark:border-navy-700 py-1 overflow-hidden"
+                    >
+                      <div className="px-4 py-3 border-b border-gray-100 dark:border-navy-700">
+                        <p className="text-xs text-gray-400">Logged in as</p>
+                        <p className="text-sm font-semibold text-navy-900 dark:text-white truncate">{user.email}</p>
+                      </div>
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:text-navy-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-navy-800 transition-colors"
+                      >
+                        <User className="w-4 h-4" /> Dashboard
+                      </Link>
+                      <button
+                        onClick={logout}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" /> Log Out
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <Link
+                href="/audit"
+                className="px-5 py-2.5 bg-[#00C853] hover:bg-[#00892e] text-white text-sm font-semibold rounded-xl transition-all shadow-md hover:shadow-lg hover:shadow-[#00C853]/25 active:scale-95"
+              >
+                Audit My Contract
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -234,14 +296,34 @@ export default function Navbar() {
                   </Link>
                 )
               )}
-              <div className="pt-3 border-t border-gray-100 dark:border-navy-800">
-                <Link
-                  href="/audit"
-                  onClick={() => setIsOpen(false)}
-                  className="block w-full text-center px-5 py-3 bg-[#00C853] hover:bg-[#00892e] text-white text-sm font-semibold rounded-xl transition-all"
-                >
-                  Audit My Contract Free
-                </Link>
+              <div className="pt-3 border-t border-gray-100 dark:border-navy-800 space-y-2">
+                {user ? (
+                  <>
+                    <div className="flex items-center gap-3 px-3 py-2">
+                      <div className="w-8 h-8 rounded-full bg-[#00C853] flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs font-bold">{user.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-navy-900 dark:text-white truncate">{user.name}</p>
+                        <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { logout(); setIsOpen(false); }}
+                      className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" /> Log Out
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/audit"
+                    onClick={() => setIsOpen(false)}
+                    className="block w-full text-center px-5 py-3 bg-[#00C853] hover:bg-[#00892e] text-white text-sm font-semibold rounded-xl transition-all"
+                  >
+                    Audit My Contract Free
+                  </Link>
+                )}
               </div>
             </div>
           </motion.div>
